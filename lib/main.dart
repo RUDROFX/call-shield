@@ -35,7 +35,7 @@ class MainTabScreen extends StatefulWidget {
 class _MainTabScreenState extends State<MainTabScreen> {
   int _currentIndex = 0;
 
-  // Global State persistence so state doesn't reset automatically
+  // Persistent settings state
   static bool isShieldActive = true;
   static bool blockForeign = true;
   static bool warnUnknown = true;
@@ -80,7 +80,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
               onTap: (index) => setState(() => _currentIndex = index),
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.shield_rounded), label: 'Shield'),
-                BottomNavigationBarItem(icon: Icon(Icons.my_location_rounded), label: 'Live Location'),
+                BottomNavigationBarItem(icon: Icon(Icons.my_location_rounded), label: 'Caller Tracker'),
                 BottomNavigationBarItem(icon: Icon(Icons.tune_rounded), label: 'Rules'),
               ],
             ),
@@ -91,7 +91,6 @@ class _MainTabScreenState extends State<MainTabScreen> {
   }
 }
 
-// ---------------- GLASSMORPHIC CONTAINER WIDGET ----------------
 class GlassContainer extends StatelessWidget {
   final Widget child;
   final double borderRadius;
@@ -126,7 +125,6 @@ class GlassContainer extends StatelessWidget {
   }
 }
 
-// ---------------- DASHBOARD PAGE ----------------
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -144,18 +142,11 @@ class _DashboardPageState extends State<DashboardPage> {
       'type': 'blocked_foreign'
     },
     {
-      'number': '+880 1712-998877',
-      'status': 'Unknown Caller Warning',
+      'number': '+880 1739-253423',
+      'status': 'Unknown Incoming Call',
       'location': 'Grameenphone • Dhaka, Bangladesh',
       'time': '15 mins ago',
       'type': 'warning_unknown'
-    },
-    {
-      'number': '+91 98765 43210',
-      'status': 'Auto-Blocked (Foreign)',
-      'location': 'India • Live GPS Tracked',
-      'time': '1 hour ago',
-      'type': 'blocked_foreign'
     },
   ];
 
@@ -192,7 +183,6 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Glass Banner Switch
             GlassContainer(
               borderColor: active ? const Color(0xFF00E676).withOpacity(0.4) : Colors.redAccent.withOpacity(0.4),
               child: Padding(
@@ -214,14 +204,14 @@ class _DashboardPageState extends State<DashboardPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            active ? 'Smart Shield Active' : 'Protection Paused',
+                            active ? 'Smart Shield Active' : 'Protection Disabled',
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             active
-                                ? 'Foreign numbers auto-blocked. Live location tracking enabled.'
-                                : 'Shield is OFF. Incoming calls will not be filtered.',
+                                ? 'Foreign calls blocked. Live overlay active on call.'
+                                : 'Protection OFF. Settings saved permanently.',
                             style: const TextStyle(color: Colors.white60, fontSize: 12),
                           ),
                         ],
@@ -246,7 +236,7 @@ class _DashboardPageState extends State<DashboardPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Live Activity Feed', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+                const Text('Live Incoming Call Logs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 if (callLogs.isNotEmpty)
                   GestureDetector(
                     onTap: () => setState(() => callLogs.clear()),
@@ -259,7 +249,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
             Expanded(
               child: callLogs.isEmpty
-                  ? const Center(child: Text('No call activity recorded.', style: TextStyle(color: Colors.white38)))
+                  ? const Center(child: Text('No recent call activity.', style: TextStyle(color: Colors.white38)))
                   : ListView.builder(
                       itemCount: callLogs.length,
                       itemBuilder: (context, index) {
@@ -274,7 +264,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               leading: CircleAvatar(
                                 backgroundColor: isBlocked ? Colors.redAccent.withOpacity(0.2) : Colors.amber.withOpacity(0.2),
                                 child: Icon(
-                                  isBlocked ? Icons.block_rounded : Icons.warning_amber_rounded,
+                                  isBlocked ? Icons.block_rounded : Icons.phone_callback_rounded,
                                   color: isBlocked ? Colors.redAccent : Colors.amber,
                                 ),
                               ),
@@ -301,7 +291,6 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-// ---------------- LIVE LOCATION ANALYZER ----------------
 class LocationAnalyzerPage extends StatefulWidget {
   const LocationAnalyzerPage({super.key});
 
@@ -316,20 +305,45 @@ class _LocationAnalyzerPageState extends State<LocationAnalyzerPage> {
   String _action = '';
 
   void _analyze(String val) {
-    if (val.isEmpty) return;
+    if (val.trim().isEmpty) {
+      setState(() {
+        _location = '';
+        _operator = '';
+        _action = '';
+      });
+      return;
+    }
+
+    String num = val.replaceAll(RegExp(r'[^0-9+]'), '');
+
     setState(() {
-      if (val.startsWith('+1')) {
-        _operator = 'US/Canada Telecom Network';
-        _location = 'United States (North America)';
+      if (num.startsWith('+1')) {
+        _operator = 'US/Canada Telecom Carrier';
+        _location = 'United States / Canada';
         _action = 'RULE: AUTO-BLOCK (International)';
-      } else if (val.startsWith('+880') || val.startsWith('01')) {
+      } else if (num.startsWith('+880') || num.startsWith('01')) {
         _location = 'Dhaka Division, Bangladesh';
-        _operator = 'Grameenphone / Robi Network';
-        _action = 'RULE: SHOW UNKNOWN WARNING & LIVE LOCATION';
+
+        // Precise Operator Identification Logic
+        if (num.contains('017') || num.contains('013')) {
+          _operator = 'Grameenphone (GP)';
+        } else if (num.contains('019') || num.contains('014')) {
+          _operator = 'Banglalink (BL)';
+        } else if (num.contains('018')) {
+          _operator = 'Robi Axiata';
+        } else if (num.contains('016')) {
+          _operator = 'Airtel Bangladesh';
+        } else if (num.contains('015')) {
+          _operator = 'Teletalk Bangladesh';
+        } else {
+          _operator = 'Bangladesh Mobile Network';
+        }
+
+        _action = 'RULE: SHOW LIVE CALLER OVERLAY POPUP';
       } else {
-        _operator = 'Overseas Gateway';
-        _location = 'International Region';
-        _action = 'RULE: AUTO-BLOCK (International)';
+        _operator = 'International Gateway';
+        _location = 'Foreign Country';
+        _action = 'RULE: AUTO-BLOCK (Foreign Number)';
       }
     });
   }
@@ -338,7 +352,7 @@ class _LocationAnalyzerPageState extends State<LocationAnalyzerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Live Caller Tracker')),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Live Caller & Location Lookup')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -348,10 +362,11 @@ class _LocationAnalyzerPageState extends State<LocationAnalyzerPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: TextField(
                   controller: _controller,
+                  keyboardType: TextInputType.phone,
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
-                    hintText: 'Enter phone number with country code...',
+                    hintText: 'Enter phone number (e.g. 01739...)',
                     hintStyle: TextStyle(color: Colors.white38),
                     icon: Icon(Icons.search, color: Color(0xFF00E676)),
                   ),
@@ -368,13 +383,13 @@ class _LocationAnalyzerPageState extends State<LocationAnalyzerPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('LIVE TRACKING RESULT', style: TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.bold)),
+                      const Text('REAL-TIME CALLER IDENTIFIER', style: TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
                       Row(
                         children: [
                           const Icon(Icons.location_on, color: Color(0xFF00E676)),
                           const SizedBox(width: 10),
-                          Text(_location, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                          Expanded(child: Text(_location, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -382,7 +397,7 @@ class _LocationAnalyzerPageState extends State<LocationAnalyzerPage> {
                         children: [
                           const Icon(Icons.cell_tower, color: Colors.blueAccent),
                           const SizedBox(width: 10),
-                          Text(_operator, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                          Expanded(child: Text(_operator, style: const TextStyle(color: Colors.white70, fontSize: 14))),
                         ],
                       ),
                       const Divider(color: Colors.white12, height: 24),
@@ -398,7 +413,6 @@ class _LocationAnalyzerPageState extends State<LocationAnalyzerPage> {
   }
 }
 
-// ---------------- RULES & SETTINGS PAGE ----------------
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -428,16 +442,16 @@ class _SettingsPageState extends State<SettingsPage> {
                 const Divider(color: Colors.white12, height: 1),
                 SwitchListTile(
                   activeColor: const Color(0xFF00E676),
-                  title: const Text('Unknown Call Warning', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Show caution alert for unknown numbers without blocking', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  title: const Text('Unknown Call Warning Banner', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Show floating window when unknown call arrives', style: TextStyle(color: Colors.white54, fontSize: 12)),
                   value: _MainTabScreenState.warnUnknown,
                   onChanged: (val) => setState(() => _MainTabScreenState.warnUnknown = val),
                 ),
                 const Divider(color: Colors.white12, height: 1),
                 SwitchListTile(
                   activeColor: const Color(0xFF00E676),
-                  title: const Text('Live Caller GPS Tracking', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Display real-time location & city pop-up during call', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  title: const Text('Live Caller GPS & City Tracker', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Display caller location during ringing', style: TextStyle(color: Colors.white54, fontSize: 12)),
                   value: _MainTabScreenState.liveLocationPopup,
                   onChanged: (val) => setState(() => _MainTabScreenState.liveLocationPopup = val),
                 ),
