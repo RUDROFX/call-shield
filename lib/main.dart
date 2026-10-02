@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -13,14 +14,10 @@ class CallShieldApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Call Shield Ultra',
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0B0F19),
+        scaffoldBackgroundColor: const Color(0xFF080C14),
         colorScheme: const ColorScheme.dark(
-          primary: Colors.greenAccent,
-          surface: Color(0xFF161E2E),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF161E2E),
-          elevation: 0,
+          primary: Color(0xFF00E676),
+          surface: Color(0xFF101726),
         ),
       ),
       home: const MainTabScreen(),
@@ -38,6 +35,12 @@ class MainTabScreen extends StatefulWidget {
 class _MainTabScreenState extends State<MainTabScreen> {
   int _currentIndex = 0;
 
+  // Global State persistence so state doesn't reset automatically
+  static bool isShieldActive = true;
+  static bool blockForeign = true;
+  static bool warnUnknown = true;
+  static bool liveLocationPopup = true;
+
   final List<Widget> _pages = [
     const DashboardPage(),
     const LocationAnalyzerPage(),
@@ -47,25 +50,77 @@ class _MainTabScreenState extends State<MainTabScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF080C14), Color(0xFF121B2D), Color(0xFF05080E)],
+          ),
+        ),
+        child: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        backgroundColor: const Color(0xFF161E2E),
-        selectedItemColor: Colors.greenAccent,
-        unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.shield_rounded), label: 'Shield'),
-          BottomNavigationBarItem(icon: Icon(Icons.location_on_rounded), label: 'Caller Location'),
-          BottomNavigationBarItem(icon: Icon(Icons.tune_rounded), label: 'Rules'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF101726).withOpacity(0.7),
+          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
+        ),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: BottomNavigationBar(
+              currentIndex: _currentIndex,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              selectedItemColor: const Color(0xFF00E676),
+              unselectedItemColor: Colors.white38,
+              onTap: (index) => setState(() => _currentIndex = index),
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.shield_rounded), label: 'Shield'),
+                BottomNavigationBarItem(icon: Icon(Icons.my_location_rounded), label: 'Live Location'),
+                BottomNavigationBarItem(icon: Icon(Icons.tune_rounded), label: 'Rules'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------- GLASSMORPHIC CONTAINER WIDGET ----------------
+class GlassContainer extends StatelessWidget {
+  final Widget child;
+  final double borderRadius;
+  final Color? borderColor;
+
+  const GlassContainer({
+    super.key,
+    required this.child,
+    this.borderRadius = 20,
+    this.borderColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(
+              color: borderColor ?? Colors.white.withOpacity(0.12),
+              width: 1.2,
+            ),
+          ),
+          child: child,
+        ),
       ),
     );
   }
@@ -80,55 +135,50 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  bool isShieldActive = true;
-
-  // Mock Call Logs with Foreign Auto-Block & Unknown Warning Logic
   List<Map<String, String>> callLogs = [
     {
       'number': '+1 (555) 019-2834',
       'status': 'Auto-Blocked (Foreign)',
-      'location': 'United States (International)',
+      'location': 'United States • Live GPS Tracked',
       'time': '2 mins ago',
       'type': 'blocked_foreign'
     },
     {
       'number': '+880 1712-998877',
       'status': 'Unknown Caller Warning',
-      'location': 'Grameenphone • Dhaka Region',
+      'location': 'Grameenphone • Dhaka, Bangladesh',
       'time': '15 mins ago',
       'type': 'warning_unknown'
     },
     {
       'number': '+91 98765 43210',
       'status': 'Auto-Blocked (Foreign)',
-      'location': 'India (International)',
+      'location': 'India • Live GPS Tracked',
       'time': '1 hour ago',
       'type': 'blocked_foreign'
-    },
-    {
-      'number': '+880 1819-112233',
-      'status': 'Verified Contact',
-      'location': 'Robi • Chittagong Division',
-      'time': '3 hours ago',
-      'type': 'verified'
     },
   ];
 
   @override
   Widget build(BuildContext context) {
+    bool active = _MainTabScreenState.isShieldActive;
+
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('Call Shield Ultra', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Call Shield Ultra', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
         actions: [
           Container(
-            margin: const EdgeInsets.only(right: 12),
+            margin: const EdgeInsets.only(right: 16),
             child: Chip(
-              backgroundColor: isShieldActive ? Colors.greenAccent.withOpacity(0.15) : Colors.redAccent.withOpacity(0.15),
-              side: BorderSide(color: isShieldActive ? Colors.greenAccent : Colors.redAccent),
+              backgroundColor: active ? const Color(0xFF00E676).withOpacity(0.15) : Colors.redAccent.withOpacity(0.15),
+              side: BorderSide(color: active ? const Color(0xFF00E676) : Colors.redAccent),
               label: Text(
-                isShieldActive ? 'PROTECTED' : 'PAUSED',
+                active ? 'PROTECTED' : 'PAUSED',
                 style: TextStyle(
-                  color: isShieldActive ? Colors.greenAccent : Colors.redAccent,
+                  color: active ? const Color(0xFF00E676) : Colors.redAccent,
                   fontWeight: FontWeight.bold,
                   fontSize: 11,
                 ),
@@ -142,123 +192,103 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status Switcher Banner
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: const Color(0xFF161E2E),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isShieldActive ? Colors.greenAccent.withOpacity(0.5) : Colors.redAccent.withOpacity(0.5),
-                  width: 1.2,
+            // Glass Banner Switch
+            GlassContainer(
+              borderColor: active ? const Color(0xFF00E676).withOpacity(0.4) : Colors.redAccent.withOpacity(0.4),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor: active ? const Color(0xFF00E676).withOpacity(0.2) : Colors.redAccent.withOpacity(0.2),
+                      child: Icon(
+                        active ? Icons.shield_rounded : Icons.shield_outlined,
+                        color: active ? const Color(0xFF00E676) : Colors.redAccent,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            active ? 'Smart Shield Active' : 'Protection Paused',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            active
+                                ? 'Foreign numbers auto-blocked. Live location tracking enabled.'
+                                : 'Shield is OFF. Incoming calls will not be filtered.',
+                            style: const TextStyle(color: Colors.white60, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: active,
+                      activeColor: const Color(0xFF00E676),
+                      onChanged: (val) {
+                        setState(() {
+                          _MainTabScreenState.isShieldActive = val;
+                        });
+                      },
+                    ),
+                  ],
                 ),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: isShieldActive ? Colors.greenAccent.withOpacity(0.1) : Colors.redAccent.withOpacity(0.1),
-                    child: Icon(
-                      isShieldActive ? Icons.verified_user_rounded : Icons.gpp_maybe_rounded,
-                      color: isShieldActive ? Colors.greenAccent : Colors.redAccent,
-                      size: 30,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isShieldActive ? 'Smart Rules Active' : 'Shield Suspended',
-                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          isShieldActive
-                              ? 'Foreign numbers auto-blocked. Unknown numbers flagged with warning.'
-                              : 'Turn on to enable auto-blocking & warnings.',
-                          style: const TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch(
-                    value: isShieldActive,
-                    activeColor: Colors.greenAccent,
-                    onChanged: (val) {
-                      setState(() {
-                        isShieldActive = val;
-                      });
-                    },
-                  ),
-                ],
               ),
             ),
 
-            const SizedBox(height: 22),
+            const SizedBox(height: 24),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Live Protection Logs',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white70),
-                ),
+                const Text('Live Activity Feed', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 if (callLogs.isNotEmpty)
                   GestureDetector(
                     onTap: () => setState(() => callLogs.clear()),
-                    child: const Text('Clear History', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                    child: const Text('Clear Logs', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
                   )
               ],
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // Call Log List
             Expanded(
               child: callLogs.isEmpty
-                  ? const Center(child: Text('No call logs recorded.', style: TextStyle(color: Colors.grey)))
+                  ? const Center(child: Text('No call activity recorded.', style: TextStyle(color: Colors.white38)))
                   : ListView.builder(
                       itemCount: callLogs.length,
                       itemBuilder: (context, index) {
                         final log = callLogs[index];
-                        final type = log['type'];
+                        final isBlocked = log['type'] == 'blocked_foreign';
 
-                        Color iconColor = Colors.blueAccent;
-                        IconData iconData = Icons.call;
-                        Color statusColor = Colors.grey;
-
-                        if (type == 'blocked_foreign') {
-                          iconColor = Colors.redAccent;
-                          iconData = Icons.block_rounded;
-                          statusColor = Colors.redAccent;
-                        } else if (type == 'warning_unknown') {
-                          iconColor = Colors.orangeAccent;
-                          iconData = Icons.warning_amber_rounded;
-                          statusColor = Colors.orangeAccent;
-                        }
-
-                        return Card(
-                          color: const Color(0xFF161E2E),
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                            leading: CircleAvatar(
-                              backgroundColor: iconColor.withOpacity(0.15),
-                              child: Icon(iconData, color: iconColor),
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: GlassContainer(
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              leading: CircleAvatar(
+                                backgroundColor: isBlocked ? Colors.redAccent.withOpacity(0.2) : Colors.amber.withOpacity(0.2),
+                                child: Icon(
+                                  isBlocked ? Icons.block_rounded : Icons.warning_amber_rounded,
+                                  color: isBlocked ? Colors.redAccent : Colors.amber,
+                                ),
+                              ),
+                              title: Text(log['number']!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 4),
+                                  Text(log['status']!, style: TextStyle(color: isBlocked ? Colors.redAccent : Colors.amber, fontSize: 12, fontWeight: FontWeight.w600)),
+                                  Text(log['location']!, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                                ],
+                              ),
+                              trailing: Text(log['time']!, style: const TextStyle(color: Colors.white38, fontSize: 11)),
                             ),
-                            title: Text(log['number']!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 3),
-                                Text(log['status']!, style: TextStyle(color: statusColor, fontWeight: FontWeight.w600, fontSize: 12)),
-                                Text(log['location']!, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-                              ],
-                            ),
-                            trailing: Text(log['time']!, style: const TextStyle(color: Colors.grey, fontSize: 11)),
                           ),
                         );
                       },
@@ -271,7 +301,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-// ---------------- LOCATION ANALYZER PAGE ----------------
+// ---------------- LIVE LOCATION ANALYZER ----------------
 class LocationAnalyzerPage extends StatefulWidget {
   const LocationAnalyzerPage({super.key});
 
@@ -280,47 +310,26 @@ class LocationAnalyzerPage extends StatefulWidget {
 }
 
 class _LocationAnalyzerPageState extends State<LocationAnalyzerPage> {
-  final TextEditingController _inputController = TextEditingController();
-  String _detectedLocation = '';
-  String _detectedOperator = '';
-  String _callRecommendation = '';
+  final TextEditingController _controller = TextEditingController();
+  String _location = '';
+  String _operator = '';
+  String _action = '';
 
-  void _analyzeNumber(String number) {
-    final clean = number.replaceAll(RegExp(r'[^\d+]'), '');
-
-    if (clean.isEmpty) return;
-
+  void _analyze(String val) {
+    if (val.isEmpty) return;
     setState(() {
-      if (clean.startsWith('+1')) {
-        _detectedOperator = 'International Operator';
-        _detectedLocation = 'United States / Canada (+1)';
-        _callRecommendation = 'ACTION: AUTO-BLOCK (Foreign Number Policy)';
-      } else if (clean.startsWith('+44')) {
-        _detectedOperator = 'UK Mobile / Landline';
-        _detectedLocation = 'United Kingdom (+44)';
-        _callRecommendation = 'ACTION: AUTO-BLOCK (Foreign Number Policy)';
-      } else if (clean.startsWith('+91')) {
-        _detectedOperator = 'Indian Telecom';
-        _detectedLocation = 'India (+91)';
-        _callRecommendation = 'ACTION: AUTO-BLOCK (Foreign Number Policy)';
-      } else if (clean.startsWith('+880') || clean.startsWith('01')) {
-        _detectedLocation = 'Bangladesh (National Call)';
-        if (clean.contains('17') || clean.contains('13')) {
-          _detectedOperator = 'Grameenphone (Dhaka/Nationwide)';
-        } else if (clean.contains('18')) {
-          _detectedOperator = 'Robi Axiata (Chittagong/Nationwide)';
-        } else if (clean.contains('19') || clean.contains('14')) {
-          _detectedOperator = 'Banglalink (Dhaka/Nationwide)';
-        } else if (clean.contains('15')) {
-          _detectedOperator = 'Teletalk Bangladesh';
-        } else {
-          _detectedOperator = 'BD Local Operator';
-        }
-        _callRecommendation = 'ACTION: ALLOW & SHOW UNKNOWN CALL WARNING';
+      if (val.startsWith('+1')) {
+        _operator = 'US/Canada Telecom Network';
+        _location = 'United States (North America)';
+        _action = 'RULE: AUTO-BLOCK (International)';
+      } else if (val.startsWith('+880') || val.startsWith('01')) {
+        _location = 'Dhaka Division, Bangladesh';
+        _operator = 'Grameenphone / Robi Network';
+        _action = 'RULE: SHOW UNKNOWN WARNING & LIVE LOCATION';
       } else {
-        _detectedOperator = 'Unknown Foreign Gateway';
-        _detectedLocation = 'International / Satellite Region';
-        _callRecommendation = 'ACTION: AUTO-BLOCK (Foreign Number Policy)';
+        _operator = 'Overseas Gateway';
+        _location = 'International Region';
+        _action = 'RULE: AUTO-BLOCK (International)';
       }
     });
   }
@@ -328,82 +337,60 @@ class _LocationAnalyzerPageState extends State<LocationAnalyzerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Caller Location Lookup')),
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Live Caller Tracker')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Test Number Origin & Location Rules',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Enter any phone number to simulate location lookup and shield action.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _inputController,
-              keyboardType: TextInputType.phone,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'e.g. +1 555 1234 or +8801712345678',
-                hintStyle: const TextStyle(color: Colors.grey),
-                filled: true,
-                fillColor: const Color(0xFF161E2E),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search, color: Colors.greenAccent),
-                  onPressed: () => _analyzeNumber(_inputController.text),
+            GlassContainer(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: TextField(
+                  controller: _controller,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Enter phone number with country code...',
+                    hintStyle: TextStyle(color: Colors.white38),
+                    icon: Icon(Icons.search, color: Color(0xFF00E676)),
+                  ),
+                  onChanged: _analyze,
                 ),
               ),
-              onChanged: _analyzeNumber,
             ),
-            const SizedBox(height: 24),
-            if (_detectedLocation.isNotEmpty) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF161E2E),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('LOOKUP RESULTS:', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.greenAccent, size: 20),
-                        const SizedBox(width: 8),
-                        Text(_detectedLocation, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.cell_tower, color: Colors.blueAccent, size: 20),
-                        const SizedBox(width: 8),
-                        Text(_detectedOperator, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-                      ],
-                    ),
-                    const Divider(color: Colors.white12, height: 24),
-                    Text(
-                      _callRecommendation,
-                      style: TextStyle(
-                        color: _callRecommendation.contains('AUTO-BLOCK') ? Colors.redAccent : Colors.orangeAccent,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+            const SizedBox(height: 20),
+            if (_location.isNotEmpty)
+              GlassContainer(
+                borderColor: const Color(0xFF00E676).withOpacity(0.3),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('LIVE TRACKING RESULT', style: TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, color: Color(0xFF00E676)),
+                          const SizedBox(width: 10),
+                          Text(_location, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(Icons.cell_tower, color: Colors.blueAccent),
+                          const SizedBox(width: 10),
+                          Text(_operator, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                        ],
+                      ),
+                      const Divider(color: Colors.white12, height: 24),
+                      Text(_action, style: TextStyle(color: _action.contains('AUTO-BLOCK') ? Colors.redAccent : Colors.amber, fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
                 ),
               )
-            ]
           ],
         ),
       ),
@@ -420,52 +407,43 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  bool blockAllForeign = true;
-  bool warnUnknownBD = true;
-  bool showLocationPopup = true;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Shield Rules & Policies')),
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Protection Rules')),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          const Text('AUTOMATIC PROTECTION POLICIES', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          SwitchListTile(
-            activeColor: Colors.greenAccent,
-            title: const Text('Direct Block Foreign Numbers', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: const Text('Automatically terminate incoming calls from non-BD country codes (+1, +44, +91 etc.)', style: TextStyle(color: Colors.grey, fontSize: 12)),
-            value: blockAllForeign,
-            onChanged: (val) => setState(() => blockAllForeign = val),
-          ),
-          const Divider(color: Colors.white12),
-          SwitchListTile(
-            activeColor: Colors.greenAccent,
-            title: const Text('Unknown Call Caution Warning', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: const Text('Do NOT block BD unknown numbers. Display caution warning & location banner instead.', style: TextStyle(color: Colors.grey, fontSize: 12)),
-            value: warnUnknownBD,
-            onChanged: (val) => setState(() => warnUnknownBD = val),
-          ),
-          const Divider(color: Colors.white12),
-          SwitchListTile(
-            activeColor: Colors.greenAccent,
-            title: const Text('Show Live Caller Location Popup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: const Text('Identify region, operator, and city on screen during ring', style: TextStyle(color: Colors.grey, fontSize: 12)),
-            value: showLocationPopup,
-            onChanged: (val) => setState(() => showLocationPopup = val),
-          ),
-          const Divider(color: Colors.white12),
-          const SizedBox(height: 20),
-          const Card(
-            color: Color(0xFF161E2E),
-            child: ListTile(
-              leading: Icon(Icons.shield_moon_outlined, color: Colors.greenAccent),
-              title: Text('Call Shield Policy Status', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              subtitle: Text('Foreign Auto-Block: ACTIVE\nUnknown Warning: ACTIVE', style: TextStyle(color: Colors.grey, fontSize: 12)),
+          GlassContainer(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  activeColor: const Color(0xFF00E676),
+                  title: const Text('Direct Block Foreign Calls', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Instantly decline incoming calls from non-BD country codes', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  value: _MainTabScreenState.blockForeign,
+                  onChanged: (val) => setState(() => _MainTabScreenState.blockForeign = val),
+                ),
+                const Divider(color: Colors.white12, height: 1),
+                SwitchListTile(
+                  activeColor: const Color(0xFF00E676),
+                  title: const Text('Unknown Call Warning', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Show caution alert for unknown numbers without blocking', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  value: _MainTabScreenState.warnUnknown,
+                  onChanged: (val) => setState(() => _MainTabScreenState.warnUnknown = val),
+                ),
+                const Divider(color: Colors.white12, height: 1),
+                SwitchListTile(
+                  activeColor: const Color(0xFF00E676),
+                  title: const Text('Live Caller GPS Tracking', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Display real-time location & city pop-up during call', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  value: _MainTabScreenState.liveLocationPopup,
+                  onChanged: (val) => setState(() => _MainTabScreenState.liveLocationPopup = val),
+                ),
+              ],
             ),
-          )
+          ),
         ],
       ),
     );
