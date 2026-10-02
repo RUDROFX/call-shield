@@ -1,7 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const CallShieldApp());
 }
 
@@ -34,12 +36,6 @@ class MainTabScreen extends StatefulWidget {
 
 class _MainTabScreenState extends State<MainTabScreen> {
   int _currentIndex = 0;
-
-  // Persistent settings state
-  static bool isShieldActive = true;
-  static bool blockForeign = true;
-  static bool warnUnknown = true;
-  static bool liveLocationPopup = true;
 
   final List<Widget> _pages = [
     const DashboardPage(),
@@ -125,6 +121,7 @@ class GlassContainer extends StatelessWidget {
   }
 }
 
+// ---------------- DASHBOARD PAGE WITH PERMANENT SAVING ----------------
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -133,6 +130,9 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
+  bool _isShieldActive = true;
+  bool _isLoading = true;
+
   List<Map<String, String>> callLogs = [
     {
       'number': '+1 (555) 019-2834',
@@ -151,8 +151,37 @@ class _DashboardPageState extends State<DashboardPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadShieldStatus();
+  }
+
+  // Load status permanently from device storage
+  Future<void> _loadShieldStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isShieldActive = prefs.getBool('shield_status') ?? true;
+      _isLoading = false;
+    });
+  }
+
+  // Save status permanently to device storage
+  Future<void> _toggleShield(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('shield_status', value);
+    setState(() {
+      _isShieldActive = value;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    bool active = _MainTabScreenState.isShieldActive;
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF00E676))),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -164,12 +193,12 @@ class _DashboardPageState extends State<DashboardPage> {
           Container(
             margin: const EdgeInsets.only(right: 16),
             child: Chip(
-              backgroundColor: active ? const Color(0xFF00E676).withOpacity(0.15) : Colors.redAccent.withOpacity(0.15),
-              side: BorderSide(color: active ? const Color(0xFF00E676) : Colors.redAccent),
+              backgroundColor: _isShieldActive ? const Color(0xFF00E676).withOpacity(0.15) : Colors.redAccent.withOpacity(0.15),
+              side: BorderSide(color: _isShieldActive ? const Color(0xFF00E676) : Colors.redAccent),
               label: Text(
-                active ? 'PROTECTED' : 'PAUSED',
+                _isShieldActive ? 'PROTECTED' : 'PAUSED',
                 style: TextStyle(
-                  color: active ? const Color(0xFF00E676) : Colors.redAccent,
+                  color: _isShieldActive ? const Color(0xFF00E676) : Colors.redAccent,
                   fontWeight: FontWeight.bold,
                   fontSize: 11,
                 ),
@@ -184,17 +213,17 @@ class _DashboardPageState extends State<DashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             GlassContainer(
-              borderColor: active ? const Color(0xFF00E676).withOpacity(0.4) : Colors.redAccent.withOpacity(0.4),
+              borderColor: _isShieldActive ? const Color(0xFF00E676).withOpacity(0.4) : Colors.redAccent.withOpacity(0.4),
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundColor: active ? const Color(0xFF00E676).withOpacity(0.2) : Colors.redAccent.withOpacity(0.2),
+                      backgroundColor: _isShieldActive ? const Color(0xFF00E676).withOpacity(0.2) : Colors.redAccent.withOpacity(0.2),
                       child: Icon(
-                        active ? Icons.shield_rounded : Icons.shield_outlined,
-                        color: active ? const Color(0xFF00E676) : Colors.redAccent,
+                        _isShieldActive ? Icons.shield_rounded : Icons.shield_outlined,
+                        color: _isShieldActive ? const Color(0xFF00E676) : Colors.redAccent,
                         size: 30,
                       ),
                     ),
@@ -204,27 +233,23 @@ class _DashboardPageState extends State<DashboardPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            active ? 'Smart Shield Active' : 'Protection Disabled',
+                            _isShieldActive ? 'Smart Shield Active' : 'Protection Disabled',
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            active
+                            _isShieldActive
                                 ? 'Foreign calls blocked. Live overlay active on call.'
-                                : 'Protection OFF. Settings saved permanently.',
+                                : 'Protection OFF. Saved permanently in device memory.',
                             style: const TextStyle(color: Colors.white60, fontSize: 12),
                           ),
                         ],
                       ),
                     ),
                     Switch(
-                      value: active,
+                      value: _isShieldActive,
                       activeColor: const Color(0xFF00E676),
-                      onChanged: (val) {
-                        setState(() {
-                          _MainTabScreenState.isShieldActive = val;
-                        });
-                      },
+                      onChanged: (val) => _toggleShield(val),
                     ),
                   ],
                 ),
@@ -291,6 +316,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
+// ---------------- CALLER TRACKER PAGE ----------------
 class LocationAnalyzerPage extends StatefulWidget {
   const LocationAnalyzerPage({super.key});
 
@@ -324,7 +350,6 @@ class _LocationAnalyzerPageState extends State<LocationAnalyzerPage> {
       } else if (num.startsWith('+880') || num.startsWith('01')) {
         _location = 'Dhaka Division, Bangladesh';
 
-        // Precise Operator Identification Logic
         if (num.contains('017') || num.contains('013')) {
           _operator = 'Grameenphone (GP)';
         } else if (num.contains('019') || num.contains('014')) {
@@ -413,6 +438,7 @@ class _LocationAnalyzerPageState extends State<LocationAnalyzerPage> {
   }
 }
 
+// ---------------- RULES PAGE ----------------
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -421,6 +447,30 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  bool _blockForeign = true;
+  bool _warnUnknown = true;
+  bool _livePopup = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRules();
+  }
+
+  Future<void> _loadRules() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _blockForeign = prefs.getBool('block_foreign') ?? true;
+      _warnUnknown = prefs.getBool('warn_unknown') ?? true;
+      _livePopup = prefs.getBool('live_popup') ?? true;
+    });
+  }
+
+  Future<void> _updateRule(String key, bool val) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, val);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -436,24 +486,33 @@ class _SettingsPageState extends State<SettingsPage> {
                   activeColor: const Color(0xFF00E676),
                   title: const Text('Direct Block Foreign Calls', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   subtitle: const Text('Instantly decline incoming calls from non-BD country codes', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  value: _MainTabScreenState.blockForeign,
-                  onChanged: (val) => setState(() => _MainTabScreenState.blockForeign = val),
+                  value: _blockForeign,
+                  onChanged: (val) {
+                    setState(() => _blockForeign = val);
+                    _updateRule('block_foreign', val);
+                  },
                 ),
                 const Divider(color: Colors.white12, height: 1),
                 SwitchListTile(
                   activeColor: const Color(0xFF00E676),
                   title: const Text('Unknown Call Warning Banner', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   subtitle: const Text('Show floating window when unknown call arrives', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  value: _MainTabScreenState.warnUnknown,
-                  onChanged: (val) => setState(() => _MainTabScreenState.warnUnknown = val),
+                  value: _warnUnknown,
+                  onChanged: (val) {
+                    setState(() => _warnUnknown = val);
+                    _updateRule('warn_unknown', val);
+                  },
                 ),
                 const Divider(color: Colors.white12, height: 1),
                 SwitchListTile(
                   activeColor: const Color(0xFF00E676),
                   title: const Text('Live Caller GPS & City Tracker', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   subtitle: const Text('Display caller location during ringing', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  value: _MainTabScreenState.liveLocationPopup,
-                  onChanged: (val) => setState(() => _MainTabScreenState.liveLocationPopup = val),
+                  value: _livePopup,
+                  onChanged: (val) {
+                    setState(() => _livePopup = val);
+                    _updateRule('live_popup', val);
+                  },
                 ),
               ],
             ),
