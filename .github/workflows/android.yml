@@ -25,23 +25,16 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Install Dependencies
-      run: flutter pub get
-
-    - name: Build APK
-      run: flutter build apk --release
-      continue-on-error: true
-
-    - name: Try Building APK from Root/Subfolder
+    - name: Find Project and Build APK
       run: |
-        if [ -d "android" ]; then
-          flutter build apk --release
-        else
-          find . -name "pubspec.yaml" -not -path "*/.*" -execdir flutter build apk --release \;
-        fi
+        PROJECT_DIR=$(dirname $(find . -name "pubspec.yaml" -not -path "*/.*" | head -n 1))
+        echo "Found project at: $PROJECT_DIR"
+        cd "$PROJECT_DIR"
+        flutter pub get
+        flutter build apk --release
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: "**/build/app/outputs/flutter-apk/app-release.apk"
+        path: "**/build/app/outputs/flutter-apk/*.apk"
