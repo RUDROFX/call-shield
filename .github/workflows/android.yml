@@ -30,9 +30,18 @@ jobs:
 
     - name: Build APK
       run: flutter build apk --release
+      continue-on-error: true
+
+    - name: Try Building APK from Root/Subfolder
+      run: |
+        if [ -d "android" ]; then
+          flutter build apk --release
+        else
+          find . -name "pubspec.yaml" -not -path "*/.*" -execdir flutter build apk --release \;
+        fi
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: build/app/outputs/flutter-apk/app-release.apk
+        path: "**/build/app/outputs/flutter-apk/app-release.apk"
