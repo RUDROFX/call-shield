@@ -1,4 +1,4 @@
-package com.callshield.app
+package com.callshield.call_shield
 
 import android.app.Activity
 import android.app.role.RoleManager
