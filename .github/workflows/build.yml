@@ -1,0 +1,49 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Create Android project
+        run: flutter create --org com.callshield --project-name call_shield build_app
+
+      - name: Copy app code
+        run: |
+          cp pubspec.yaml build_app/pubspec.yaml
+          cp lib/main.dart build_app/lib/main.dart
+          cp native/MainActivity.kt build_app/android/app/src/main/kotlin/com/callshield/call_shield/MainActivity.kt
+          cp native/CallScreeningImpl.kt build_app/android/app/src/main/kotlin/com/callshield/call_shield/CallScreeningImpl.kt
+          cp native/AndroidManifest.xml build_app/android/app/src/main/AndroidManifest.xml
+
+      - name: Get packages
+        working-directory: build_app
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: build_app
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: build_app/build/app/outputs/flutter-apk/app-release.apk
