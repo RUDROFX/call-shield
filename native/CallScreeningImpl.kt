@@ -1,4 +1,4 @@
-package com.callshield.app
+package com.callshield.call_shield
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
